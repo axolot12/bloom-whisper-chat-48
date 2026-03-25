@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Square, Plus, MessageSquare, ImagePlus, Copy, RefreshCw, Check } from "lucide-react";
+import { Send, Square, Plus, MessageSquare, Copy, RefreshCw, Check } from "lucide-react";
 import { MODELS, Model, streamChat, generateTitle, ChatMessage } from "@/lib/openrouter";
 import { useChatStore } from "@/hooks/useChatStore";
 import ModelSelector from "@/components/chat/ModelSelector";
@@ -25,7 +25,6 @@ export default function Index() {
   const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(scrollToBottom, [store.activeChat?.messages]);
@@ -37,18 +36,6 @@ export default function Index() {
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + "px";
     }
   }, [input]);
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setInput((prev) => prev + `[IMAGE:${base64}]`);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -66,19 +53,8 @@ export default function Index() {
     setInput("");
     setIsStreaming(true);
 
-    // For API, strip image data from content (send text only to LLM)
-    const apiMessages = newMessages.map((m) => ({
-      ...m,
-      content: m.content.replace(/\[IMAGE:.*?\]/g, "").trim() || m.content,
-    }));
-
     if (chat.messages.length === 0) {
-      const titleText = text.replace(/\[IMAGE:.*?\]/g, "").trim();
-      if (titleText) {
-        generateTitle(titleText, model).then((title) => store.updateTitle(chatId!, title));
-      } else {
-        store.updateTitle(chatId!, "Image Chat");
-      }
+      generateTitle(text, model).then((title) => store.updateTitle(chatId!, title));
     }
 
     const controller = new AbortController();
@@ -89,7 +65,7 @@ export default function Index() {
 
     try {
       await streamChat({
-        messages: apiMessages,
+        messages: newMessages,
         model,
         signal: controller.signal,
         onDelta: (delta) => {
@@ -117,7 +93,7 @@ export default function Index() {
   const [copiedChat, setCopiedChat] = useState(false);
 
   const handleCopyChat = () => {
-    const text = messages.map((m) => `${m.role === "user" ? "You" : "BhosduAi"}: ${m.content.replace(/\[IMAGE:.*?\]/g, "[image]")}`).join("\n\n");
+    const text = messages.map((m) => `${m.role === "user" ? "You" : "BhosduAi"}: ${m.content}`).join("\n\n");
     navigator.clipboard.writeText(text);
     setCopiedChat(true);
     setTimeout(() => setCopiedChat(false), 2000);
@@ -130,11 +106,6 @@ export default function Index() {
     store.updateMessages(chatId, withoutLast);
     setIsStreaming(true);
 
-    const apiMessages = withoutLast.map((m) => ({
-      ...m,
-      content: m.content.replace(/\[IMAGE:.*?\]/g, "").trim() || m.content,
-    }));
-
     const controller = new AbortController();
     abortRef.current = controller;
     let assistantContent = "";
@@ -142,7 +113,7 @@ export default function Index() {
 
     try {
       await streamChat({
-        messages: apiMessages,
+        messages: withoutLast,
         model,
         signal: controller.signal,
         onDelta: (delta) => {
@@ -183,7 +154,7 @@ export default function Index() {
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0 relative">
-        {/* Top bar - minimal */}
+        {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <button
@@ -210,7 +181,6 @@ export default function Index() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {!hasMessages ? (
-            /* Empty state - Claude-like centered greeting */
             <div className="flex flex-col items-center justify-center h-full px-4">
               <div className="flex items-center gap-3 mb-8">
                 <img src={logo} alt="BhosduAi" width={40} height={40} />
@@ -219,12 +189,11 @@ export default function Index() {
                 </h1>
               </div>
 
-              {/* Input box - Claude style centered */}
               <div className="w-full max-w-2xl">
                 <div className="bg-card rounded-2xl border border-border shadow-xl overflow-hidden">
                   <textarea
                     ref={textareaRef}
-                    value={input.replace(/\[IMAGE:.*?\]/g, "📷 ")}
+                    value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="How can I help you today?"
@@ -232,17 +201,7 @@ export default function Index() {
                     className="w-full bg-transparent px-5 pt-4 pb-2 text-foreground text-sm resize-none outline-none placeholder:text-muted-foreground"
                     style={{ minHeight: "44px", maxHeight: "160px" }}
                   />
-                  <div className="flex items-center justify-between px-3 pb-3">
-                    <div className="flex items-center gap-1">
-                      <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageUpload} className="hidden" />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title="Upload image"
-                      >
-                        <ImagePlus size={18} />
-                      </button>
-                    </div>
+                  <div className="flex items-center justify-end px-3 pb-3">
                     <div className="flex items-center gap-2">
                       <ModelSelector selected={model} onSelect={setModel} />
                       <button
@@ -258,7 +217,6 @@ export default function Index() {
               </div>
             </div>
           ) : (
-            /* Chat messages */
             <div className="max-w-3xl mx-auto px-4 py-6">
               {messages.map((msg, i) => (
                 <MessageBubble
@@ -275,7 +233,6 @@ export default function Index() {
                   <div className="typing-dot w-2 h-2 rounded-full bg-primary" />
                 </div>
               )}
-              {/* Action buttons */}
               {!isStreaming && messages.length >= 2 && messages[messages.length - 1]?.role === "assistant" && (
                 <div className="flex items-center gap-2 mt-1 mb-4">
                   <button
@@ -299,14 +256,14 @@ export default function Index() {
           )}
         </div>
 
-        {/* Bottom input - only when in a chat */}
+        {/* Bottom input */}
         {hasMessages && (
           <div className="px-4 py-3" style={{ backgroundColor: "hsl(var(--chat-bg))" }}>
             <div className="max-w-3xl mx-auto">
               <div className="bg-card rounded-2xl border border-border overflow-hidden">
                 <textarea
                   ref={textareaRef}
-                  value={input.replace(/\[IMAGE:.*?\]/g, "📷 ")}
+                  value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Reply to BhosduAi..."
@@ -314,16 +271,7 @@ export default function Index() {
                   className="w-full bg-transparent px-5 pt-4 pb-2 text-foreground text-sm resize-none outline-none placeholder:text-muted-foreground"
                   style={{ minHeight: "44px", maxHeight: "160px" }}
                 />
-                <div className="flex items-center justify-between px-3 pb-3">
-                  <div className="flex items-center gap-1">
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="file-input-bottom" />
-                    <button
-                      onClick={() => document.getElementById("file-input-bottom")?.click()}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                      <ImagePlus size={18} />
-                    </button>
-                  </div>
+                <div className="flex items-center justify-end px-3 pb-3">
                   <div className="flex items-center gap-2">
                     <ModelSelector selected={model} onSelect={setModel} />
                     {isStreaming ? (

@@ -1,6 +1,7 @@
-import { X, Copy, Check, Code, Eye } from "lucide-react";
+import { X, Copy, Check, Code, Eye, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ArtifactPanelProps {
   code: string;
@@ -12,12 +13,73 @@ export default function ArtifactPanel({ code, language, onClose }: ArtifactPanel
   const [copied, setCopied] = useState(false);
   const isHtml = language === "html" || language === "htm";
   const [showPreview, setShowPreview] = useState(isHtml);
+  const isMobile = useIsMobile();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (isMobile) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ x: "100%", opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: "100%", opacity: 0 }}
+          transition={{ type: "spring", damping: 25, stiffness: 250 }}
+          className="fixed inset-0 z-50 flex flex-col bg-popover"
+        >
+          {/* Mobile Header */}
+          <div className="flex items-center justify-between px-3 py-3 border-b border-border">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft size={18} />
+              Back
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded-md">{language}</span>
+              {isHtml && (
+                <button
+                  onClick={() => setShowPreview(!showPreview)}
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    showPreview ? "bg-primary/15 text-primary" : "hover:bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {showPreview ? <Code size={16} /> : <Eye size={16} />}
+                </button>
+              )}
+              <button
+                onClick={handleCopy}
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {copied ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-auto">
+            {showPreview && isHtml ? (
+              <iframe
+                srcDoc={code}
+                title="HTML Preview"
+                className="w-full h-full border-0 bg-white"
+                sandbox="allow-scripts"
+              />
+            ) : (
+              <pre className="p-4 text-[0.82rem] font-mono leading-relaxed text-foreground whitespace-pre-wrap">
+                <code>{code}</code>
+              </pre>
+            )}
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   return (
     <AnimatePresence>
