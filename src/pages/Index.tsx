@@ -275,6 +275,25 @@ export default function Index() {
                   <div className="typing-dot w-2 h-2 rounded-full bg-primary" />
                 </div>
               )}
+              {/* Action buttons */}
+              {!isStreaming && messages.length >= 2 && messages[messages.length - 1]?.role === "assistant" && (
+                <div className="flex items-center gap-2 mt-1 mb-4">
+                  <button
+                    onClick={handleCopyChat}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    {copiedChat ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                    {copiedChat ? "Copied" : "Copy chat"}
+                  </button>
+                  <button
+                    onClick={handleRegenerate}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <RefreshCw size={13} />
+                    Regenerate
+                  </button>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
           )}
