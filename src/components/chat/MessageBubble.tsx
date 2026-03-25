@@ -1,8 +1,9 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChatMessage } from "@/lib/openrouter";
-import { Copy, Check, Eye } from "lucide-react";
+import { Copy, Check, Eye, Code2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -13,32 +14,11 @@ interface MessageBubbleProps {
 export default function MessageBubble({ message, onArtifact, isLast }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
-  // Check if message has image
-  if (isUser && message.content.startsWith("data:image")) {
-    return (
-      <div className="flex justify-end mb-4">
-        <div className="max-w-[300px] rounded-2xl overflow-hidden bg-chat-user">
-          <img src={message.content} alt="Uploaded" className="w-full h-auto" />
-        </div>
-      </div>
-    );
-  }
-
-  // Check for mixed content (text + image marker)
-  const imageMatch = isUser ? message.content.match(/\[IMAGE:(.*?)\]/) : null;
-  const textContent = isUser && imageMatch ? message.content.replace(/\[IMAGE:.*?\]/, "").trim() : message.content;
-  const imageData = imageMatch ? imageMatch[1] : null;
-
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-5`}>
-      <div className={`max-w-[70%] ${isUser ? "bg-muted rounded-2xl px-4 py-3" : ""}`}>
-        {imageData && (
-          <div className="mb-2 rounded-xl overflow-hidden max-w-[250px]">
-            <img src={imageData} alt="Uploaded" className="w-full h-auto" />
-          </div>
-        )}
+      <div className={`max-w-[85%] md:max-w-[70%] ${isUser ? "bg-muted rounded-2xl px-4 py-3" : ""}`}>
         {isUser ? (
-          <p className="text-[0.925rem] leading-relaxed text-foreground whitespace-pre-wrap">{textContent}</p>
+          <p className="text-[0.925rem] leading-relaxed text-foreground whitespace-pre-wrap">{message.content}</p>
         ) : (
           <div className="chat-prose">
             <ReactMarkdown
@@ -60,8 +40,8 @@ export default function MessageBubble({ message, onArtifact, isLast }: MessageBu
 
 function PreBlock({ children, onArtifact, isLast }: { children: React.ReactNode; onArtifact?: (code: string, lang: string) => void; isLast?: boolean }) {
   const [copied, setCopied] = useState(false);
-
   const [autoOpened, setAutoOpened] = useState(false);
+  const isMobile = useIsMobile();
 
   let code = "";
   let lang = "text";
@@ -73,19 +53,41 @@ function PreBlock({ children, onArtifact, isLast }: { children: React.ReactNode;
     if (match) lang = match[1];
   }
 
-  // Auto-open artifact only once for the last message
+  // Auto-open artifact only once for the last message (desktop only)
   useEffect(() => {
-    if (isLast && code && onArtifact && !autoOpened) {
+    if (!isMobile && isLast && code && onArtifact && !autoOpened) {
       onArtifact(code, lang);
       setAutoOpened(true);
     }
-  }, [isLast, code, autoOpened]);
+  }, [isLast, code, autoOpened, isMobile]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // On mobile: show a clickable artifact card instead of full code block
+  if (isMobile && onArtifact && code) {
+    return (
+      <div className="my-3">
+        {/* Artifact card */}
+        <button
+          onClick={() => onArtifact(code, lang)}
+          className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors text-left"
+        >
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Code2 size={18} className="text-primary" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground truncate">Artifact</p>
+            <p className="text-xs text-muted-foreground">{lang} • Tap to preview</p>
+          </div>
+          <Eye size={16} className="text-muted-foreground shrink-0" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="relative group my-3 rounded-xl overflow-hidden border border-border">
