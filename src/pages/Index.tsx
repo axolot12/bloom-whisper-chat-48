@@ -111,6 +111,9 @@ export default function Index() {
 
   const handleStop = () => abortRef.current?.abort();
 
+  const messages = store.activeChat?.messages || [];
+  const hasMessages = messages.length > 0;
+
   const [copiedChat, setCopiedChat] = useState(false);
 
   const handleCopyChat = () => {
@@ -123,7 +126,6 @@ export default function Index() {
   const handleRegenerate = useCallback(async () => {
     if (isStreaming || !store.activeChatId || messages.length < 2) return;
     const chatId = store.activeChatId;
-    // Remove last assistant message
     const withoutLast = messages.slice(0, -1);
     store.updateMessages(chatId, withoutLast);
     setIsStreaming(true);
@@ -166,9 +168,6 @@ export default function Index() {
       handleSend();
     }
   };
-
-  const messages = store.activeChat?.messages || [];
-  const hasMessages = messages.length > 0;
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "hsl(var(--chat-bg))" }}>
