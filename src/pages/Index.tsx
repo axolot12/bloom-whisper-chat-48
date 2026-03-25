@@ -111,6 +111,55 @@ export default function Index() {
 
   const handleStop = () => abortRef.current?.abort();
 
+  const [copiedChat, setCopiedChat] = useState(false);
+
+  const handleCopyChat = () => {
+    const text = messages.map((m) => `${m.role === "user" ? "You" : "BhosduAi"}: ${m.content.replace(/\[IMAGE:.*?\]/g, "[image]")}`).join("\n\n");
+    navigator.clipboard.writeText(text);
+    setCopiedChat(true);
+    setTimeout(() => setCopiedChat(false), 2000);
+  };
+
+  const handleRegenerate = useCallback(async () => {
+    if (isStreaming || !store.activeChatId || messages.length < 2) return;
+    const chatId = store.activeChatId;
+    // Remove last assistant message
+    const withoutLast = messages.slice(0, -1);
+    store.updateMessages(chatId, withoutLast);
+    setIsStreaming(true);
+
+    const apiMessages = withoutLast.map((m) => ({
+      ...m,
+      content: m.content.replace(/\[IMAGE:.*?\]/g, "").trim() || m.content,
+    }));
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let assistantContent = "";
+    store.updateMessages(chatId, [...withoutLast, { role: "assistant" as const, content: "" }]);
+
+    try {
+      await streamChat({
+        messages: apiMessages,
+        model,
+        signal: controller.signal,
+        onDelta: (delta) => {
+          assistantContent += delta;
+          store.updateMessages(chatId, [...withoutLast, { role: "assistant" as const, content: assistantContent }]);
+        },
+        onDone: () => {},
+      });
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        assistantContent += "\n\n*Error: " + err.message + "*";
+        store.updateMessages(chatId, [...withoutLast, { role: "assistant" as const, content: assistantContent }]);
+      }
+    } finally {
+      setIsStreaming(false);
+      abortRef.current = null;
+    }
+  }, [isStreaming, model, store, messages]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
