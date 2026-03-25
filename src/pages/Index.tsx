@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Square, Plus, MessageSquare, ImagePlus } from "lucide-react";
+import { Send, Square, Plus, MessageSquare, ImagePlus, Copy, RefreshCw, Check } from "lucide-react";
 import { MODELS, Model, streamChat, generateTitle, ChatMessage } from "@/lib/openrouter";
 import { useChatStore } from "@/hooks/useChatStore";
 import ModelSelector from "@/components/chat/ModelSelector";
