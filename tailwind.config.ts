@@ -57,6 +57,24 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        chat: {
+          DEFAULT: "hsl(var(--chat-bg))",
+          foreground: "hsl(var(--chat-foreground))",
+          input: "hsl(var(--chat-input-bg))",
+          user: "hsl(var(--chat-bubble-user))",
+          ai: "hsl(var(--chat-bubble-ai))",
+        },
+        artifact: {
+          DEFAULT: "hsl(var(--artifact-bg))",
+          header: "hsl(var(--artifact-header))",
+        },
+        code: {
+          DEFAULT: "hsl(var(--code-bg))",
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       borderRadius: {
         lg: "var(--radius)",
